@@ -1,0 +1,713 @@
+---
+title: "Cyclistic Case Study"
+author: "Karan Singh Bisht"
+date: "2023-03-30"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+
+
+# This is a Capstone Poject for the Google Data Analystics Professional Certificate
+
+
+
+
+
+## INTRODUCTION
+
+**Cyclistic** is a popular bike-sharing service operating in Chicago, offering residents and visitors convenient access to a fleet of **5,824 bicycles** spread across **692 stations**. Cyclistic’s diverse pricing options include **Single-Ride Passes**, **Full-Day Passes**, and **Annual Memberships**, catering to a wide range of users. Despite its growing success, the company's primary marketing focus is to **boost the number of annual members**, as this provides a more sustainable and predictable revenue stream.
+
+As a **Junior Data Analyst** at Cyclistic, my role is to analyze how casual riders and annual members differ in their usage patterns. By uncovering key insights, the goal is to develop a targeted marketing strategy that encourages casual riders to convert to annual memberships. Understanding these differences will allow Cyclistic to tailor its offerings and create more personalized, data-driven campaigns to increase member acquisition and retention.
+
+
+
+
+## OBJECTIVE
+
+The objective of this analysis is to uncover key differences in the usage patterns and behaviors of casual riders and annual members of Cyclistic's bike-sharing service. By analyzing these distinctions, we aim to identify the factors that influence casual riders' decision-making and determine the potential benefits that may motivate them to transition into annual members. The insights derived from this analysis will guide the development of targeted strategies to encourage casual riders to purchase annual memberships, enhancing Cyclistic's member acquisition efforts and overall business growth.
+
+
+
+
+## SCENARIO
+
+As a Junior Data Analyst, I have to address the following question:
+
+1)	How do annual members and casual riders use Cyclistic bikes differently? 
+
+2)	Why would casual riders buy Cyclistic annual memberships? 
+
+3)	How can Cyclistic use digital media to influence casual riders to become members?
+
+
+
+
+## DATA COLLECTION
+
+For this analysis, we will leverage 12 months of historical trip data provided by Cyclistic. The dataset includes detailed information on bike trips, such as user type (casual rider or annual member), trip duration, start and end times, bike types used, and trip locations. This rich dataset will allow us to explore key usage trends and behavioral patterns across both user groups, enabling insights into how they engage with the Cyclistic service.
+
+
+
+## STAKEHOLDERS
+
+* Director of Marketing
+
+* Cyclistic Executive Team
+
+
+
+## Setting up my enviroment
+
+To begin the analysis, we need to set up the R environment by installing and loading the necessary packages. These packages will assist in data manipulation, cleaning, visualization, and analysis throughout the project.
+
+
+```{r Intalling and Loading packages, message=FALSE, warning=FALSE}
+
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+
+install.packages("tidyverse")
+install.packages("janitor")
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+library(readr)
+library(janitor)
+library(data.table)
+library(tidyr)
+library(hms)
+
+```
+
+
+
+
+## Data Preparation and Cleaning
+
+
+
+### Preparing Uploading Data into R for analysis
+
+In this step, we will upload 12 months of Cyclistic bike trip data, collected between March 2022 and February 2023, which is in CSV format.
+
+
+
+
+### Setting up a working directory
+
+To facilitate the loading of all 12 months of data at once, we will first set up the working directory
+
+```{r setting working directory, message=FALSE, warning=FALSE}
+
+setwd("D:/Google certificate/Capstone Case Study/case study 1/Clean Data/csv")
+
+```
+
+
+This directory will serve as the location for all the data files needed for the analysis.
+
+
+
+
+### Loading CSV files into separate data frames
+
+In this step, we will load each of the 12 CSV files into R, using the **read.csv()** function to create individual data frames for each month:
+
+```{r loading CSV files, message=FALSE, warning=FALSE}
+
+jan23_df <- read.csv("JAN_2023.csv")
+feb23_df <- read.csv("FEB_2023.csv")
+dec22_df <- read.csv("DEC_2022.csv")
+nov22_df <- read.csv("NOV_2022.csv")
+oct22_df <- read.csv("OCT_2022.csv")
+sep22_df <- read.csv("SEP_2022.csv")
+aug22_df <- read.csv("AUG_2022.csv")
+jul22_df <- read.csv("JUL_2022.csv")
+jun22_df <- read.csv("JUN_2022.csv")
+may22_df <- read.csv("MAY_2022.csv")
+apr22_df <- read.csv("APR_2022.csv")
+mar22_df <- read.csv("MAR_2022.csv")
+
+```
+
+
+
+
+### Combine data frames into one
+
+In this step, we combine all 12 months of data into a single data frame using **rbind()**. This allows us to perform unified analysis across the entire dataset.
+
+```{r combine data frames, message=FALSE, warning=FALSE}
+
+cyclistic_df <- rbind(jan23_df, feb23_df, dec22_df, nov22_df, oct22_df, sep22_df, aug22_df, jun22_df, jul22_df, may22_df, apr22_df, mar22_df)
+
+```
+
+
+This single data frame, **cyclistic_df**, now contains all the trip data for the entire 12-month period.
+
+
+
+
+### Checking Data frame
+
+To better understand the structure and contents of the data frame before conducting further analysis, we use the str() and glimpse() functions. These functions help get a sense of the data types, structure, and variables present in the dataset.
+
+```{r getting familier to the data, message=FALSE, warning=FALSE}
+
+str(cyclistic_df)
+
+glimpse(cyclistic_df)
+```
+
+
+ * **str()** provides a compact display of the internal structure of the data frame, including data types and the first few values of each variable.
+
+ * **glimpse()** is a more human-readable version, showing the variables along with their data types and a small preview of their values. It also displays more variables horizontally, making it easier to get a quick overview.
+
+
+
+
+### Clean Data and Creat new Columns
+
+Before analyzing the data further, it's essential to clean and prepare it by removing unnecessary columns, converting columns to proper data formats, and creating new columns to aid in analysis. We also filter out rides with zero or negative ride times, which are likely errors.
+
+```{r cleaning data, message=FALSE, warning=FALSE}
+
+cyclistic_new_df <- cyclistic_df %>%
+  select(rideable_type, started_at, ended_at, member_casual) %>%
+  mutate(
+    started_at = dmy_hm(started_at),  #converte started_at column into date and time format
+    ended_at = dmy_hm(ended_at),      #converte ended_at column into date and time format
+    date_year = as.Date(started_at),  #create column to count date
+    day_of_week = weekdays(started_at), #create column to count day of week
+    month = months(started_at),         #create column to count months
+    time = as_hms(started_at),          #create column to count the time
+    hours = hour(time),                 #create column for hours
+    ride_length = difftime(ended_at, started_at, units = "mins") #calculate time spend by an individual
+  ) %>%
+  distinct() %>%
+  filter(ride_length > 0)
+
+```
+
+
+This process ensures the dataset is clean, and new columns will help you analyze usage patterns more effectively, such as ride duration, time of day, and the day of the week the rides were taken.
+
+
+
+
+### Summarize data for analysis.
+
+To gain insights into how members and casual riders use the Cyclistic service differently, we summarize the data focusing on key aspects such as the total number of riders, average ride length, and usage patterns.
+
+
+
+
+### Total members vs casual
+
+This analysis segment summarizes the total number of rides taken by members compared to casual riders, providing a clear view of the distribution between these two groups.
+
+```{r summarize total riders, message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>% 
+  group_by(member_casual) %>% 
+  summarise(n())
+
+```
+
+    * **Members** : **2,963,221 rides**
+    * **Casual**  : **2,087,622 rides**
+
+This summary helps in understanding the relative usage of the bike-sharing service by members versus casual riders.
+
+
+
+
+### Average Ride Length by User Type
+
+This analysis calculates the average ride length for members and casual riders. By comparing these averages, we can gain insights into how the duration of rides differs between the two user groups, highlighting their distinct usage patterns.
+
+```{r summarise Average Session Time, message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>% 
+  group_by(member_casual) %>% 
+  summarise(avg_ride_length = mean(ride_length))
+
+```
+
+
+   * **Members: Average Ride Length = 30.49 minutes**
+   
+   * **Casual Riders: Average Ride Length = 13.34 minutes**
+
+This data indicates that annual members typically use the bike-sharing service for longer durations compared to casual riders.
+            
+
+
+
+### Busiest and Idle Hours for Members and Casual Riders
+
+This analysis identifies the busiest and idle hours of the day for both members and casual riders. By examining the number of rides during each hour, we can determine peak usage times and periods of low activity.
+
+
+```{r busisest and idle hours, message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>%
+  group_by(member_casual) %>% 
+  count(hours, name = "hours_count") %>%
+  arrange(member_casual, desc(hours_count)) %>%
+  group_by(member_casual) %>%
+  summarise(busiest_hours = paste(head(hours, 3), collapse = " | "),
+            idle_hours = paste(tail(hours, 3), collapse = " | "))
+
+```
+
+
+  * **Busiest Hours:**
+
+       * **Members: 4 PM to 6 PM**
+       
+       * **Casual Riders: 4 PM to 6 PM**
+       
+       
+  *  **Idle Hours:**
+
+       * **Members: 2 AM to 4 AM**
+       
+       * **Casual Riders: 3 AM to 5 AM**
+       
+       
+This information highlights that both members and casual riders tend to have peak usage during the late afternoon hours, while the early morning hours are the least active times for both groups.
+
+
+
+
+### Most and Least Popular Bikes for **Members and Casual Riders**
+
+This analysis determines the most and least popular bike types for members and casual riders based on the number of rides. It provides insights into user preferences for different bike types and helps in understanding trends and optimizing bike distribution.
+
+```{r popular & unpopular bike, message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>%
+  group_by(member_casual) %>%
+  count(rideable_type, name = "ride_count") %>%
+  summarise(popular_bike = rideable_type[which.max(ride_count)],
+            unpopular_bike = rideable_type[which.min(ride_count)],
+            riders_using_most = max(ride_count),
+            riders_using_least = min(ride_count))
+
+```
+
+
+  * **Most Popular Bike Types:**
+
+     * **Members: Classic Bike with over 1.5 million rides**
+     
+     * **Casual Riders: Electric Bike with over 1.1 million rides**
+
+     * **Overall: Electric Bike with over 2.5 million rides**
+     
+     
+  * **Least Popular Bike Types:**
+
+     * **Members: Electric Bike with over 1.4 million rides**
+     
+     * **Casual Riders: Docked Bike with over 155 thousand rides**
+     
+     
+This summary reveals that while the Electric Bike is the most popular overall, there are differences in preferences between members and casual riders. Members tend to use Classic Bikes more frequently, whereas casual riders prefer Electric Bikes. The Docked Bike is notably less popular among casual riders.
+
+
+
+
+### Active and Idle Days of the Week for Members and Casual Riders
+
+This analysis identifies the most and least active weekdays for members and casual riders, which can inform strategies for bike availability, marketing campaigns, and promotional offers.
+
+```{r active & idle week, message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>% 
+  group_by(member_casual) %>% 
+  count(day_of_week, name = "count_day") %>% 
+arrange(member_casual, desc(count_day)) %>% 
+  group_by(member_casual) %>% 
+  summarise(active_week_days = paste(head(day_of_week, 3), collapse = " | "),
+            idle_week_days = paste(tail(day_of_week, 3), collapse = " | "))
+
+```
+
+
+  * **Active Weekdays:**
+
+    * Members: Typically most active on days like  **Thursday, Tuesday, and Wednesday.**
+    
+    * Casual Riders: Typically most active on days like  **Saturday, Sunday, and Friday.**
+
+
+  * **Idle Weekdays:**
+
+    * Members: Least active on days like  **Friday, Saturday, and Sunday.**
+    
+    * Casual Riders: Least active on days like  **Monday, Wednesday, and Tuesday.**
+
+
+Understanding these patterns can help Cyclistic optimize bike distribution and maintenance schedules, target marketing efforts more effectively, and provide promotions to boost engagement on less active days.
+
+
+
+
+### Active and Inactive Months for Members and Casual Riders
+
+This analysis identifies the most and least active months for members and casual riders, helping to plan for periods of high and low demand.
+
+```{r active & inactive months, message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>% 
+  group_by(member_casual) %>% 
+  count(month, name = "count_month") %>% 
+  arrange(member_casual, desc(count_month)) %>% 
+  group_by(member_casual) %>% 
+  summarise(active_months = paste(head(month, 3), collapse = " | "),
+            inactive_months = paste(tail(month, 3), collapse = " | "))
+
+```
+
+
+  * **Active Months:**
+
+    * Members: Members are most active in warmer months such as  **August, July, and June.**
+    
+    * Casual Riders: Casual riders are most active in warmer months such as  **July, June, and August.**
+
+
+  * **Inactive Months:**
+
+    * Members: Casual rider are least active in the winter months such as  **January, February, and December.**
+
+    * Casual Riders: Casual rider are least active in the winter months such as  **December, February, and January.**
+
+
+
+
+
+
+## Data Visualization
+
+In this section, we will use **ggplot2** to create visualizations that highlight the usage patterns and differences between Cyclistic members and casual riders. These visualizations will help us uncover key trends and behaviors that may assist in crafting strategies to convert casual riders into members.
+
+
+
+
+### Total Customers
+
+This analysis calculates the total number of annual members and casual riders in the Cyclistic data set. By visualizing the data using a bar chart, we can clearly see the difference in customer numbers between the two groups.
+
+```{r message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>% 
+  group_by(member_casual) %>% 
+  summarise(total_members = n()) %>% 
+  ggplot(aes(x = member_casual, y = total_members, color = member_casual, fill = member_casual)) +
+  geom_col() +
+  geom_text(aes(label = total_members), vjust = -0.5, size = 3) +
+  labs(title = "Total Number of Customers", x = "Member Type", y = "Total Members") +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+ 
+**Insights:**
+  
+   **Total Members:**
+    
+   * **Annual Members: 2,963,221**
+    
+   * **Casual Riders: 2,087,622**
+    
+
+This bar chart demonstrates the significant difference in the number of annual members compared to casual riders. This insight helps Cyclistic understand its customer distribution, providing a basis for targeting casual riders in future marketing campaigns.
+
+
+
+### Total Ride Type
+
+This analysis compares the types of bikes used by annual members and casual riders. By grouping the data by user type and bike type, we can visualize which bike types are most popular among each group.
+
+```{r message=FALSE, warning=FALSE}
+
+cyclistic_new_df %>% 
+  group_by(member_casual, rideable_type) %>% 
+  summarise(total_ride_type = n()) %>%
+  ggplot(aes(x = rideable_type, y = total_ride_type, fill = member_casual)) +
+  geom_col(position = position_dodge()) +
+  labs(title = "Types of Ride", x = "Rideable Type", y = "Total Count") 
+
+```
+
+
+**Insights:**
+  
+ 
+  **Most Popular Ride Types:**
+     
+   * **Members: Classic Bike**
+     
+   * **Casual Riders: Electric Bike**
+     
+     
+  * **Least Popular Ride Types:**
+  
+     * **Members: Electric Bike**
+    
+     * **Casual Riders: Docked Bike**
+    
+    
+This comparison highlights how annual members prefer classic bikes, while casual riders tend to use electric bikes more frequently. Understanding these preferences can help Cyclistic optimize its bike availability and plan targeted promotions.
+
+
+
+### Average Ride Length
+
+This analysis compares the average ride length between annual members and casual riders. By summarizing and visualizing the average duration of rides for each group, we gain insights into how long different user types typically spend on a ride.
+
+```{r}
+
+cyclistic_new_df %>%
+  group_by(member_casual) %>% 
+  summarise(avg_ride_length = mean(ride_length)) %>% 
+  ggplot(aes(x = member_casual, y = avg_ride_length, fill = member_casual)) + 
+  geom_col()+
+  geom_text(aes(label = round(avg_ride_length, 2)), vjust = -0.5, size = 3) +
+  labs(title = "Average Ride Length", x = "Member Type", y = "Average Ride Length")
+
+```
+
+
+**Insights:**
+ 
+  * **Average Ride Length:**
+  
+    * **Members: 13.34 minutes**
+    
+    * **Casual Riders: 30.49 minutes**
+    
+    
+Casual riders tend to take longer trips compared to members. This insight can inform marketing strategies, as casual users might be more inclined to explore or use bikes for recreational purposes, while members might prefer shorter, more routine trips.
+
+
+
+### Busiest Hours of Casual vs Member.
+
+This analysis visualizes the busiest hours for both casual riders and annual members by plotting the total number of trips taken throughout the day. The busiest hour for each group is highlighted to identify peak demand times.
+
+```{r}
+
+cyclistic_new_df %>%
+  mutate(hours = factor(hours, levels = 0:23, ordered = TRUE)) %>%
+  group_by(member_casual, hours) %>%
+  summarise(total_trips = n()) %>%
+  group_by(member_casual) %>%
+  mutate(max_total_trips = max(total_trips)) %>%
+  ggplot(aes(x = hours, y = total_trips, color = member_casual, group = member_casual)) +
+  geom_line(size = 1.5) +
+  geom_label(aes(label = ifelse(total_trips == max_total_trips, as.character(hours), ""), fill = member_casual),
+             color = "white", size = 3, show.legend = FALSE) +
+  labs(title = "Demand of Bikes by Hours", x = "Time", y = "Total Number of Trips") +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+
+**Insights:**
+  
+  **Busiest Hours:**
+    
+   * Both members and casual riders show peak usage between **4 PM and 6 PM.**
+
+
+This analysis confirms that demand is highest in the late afternoon for both groups, which can inform scheduling, resource allocation, and promotional strategies during peak hours.
+
+
+
+# Busiest Month of Casual vs Member
+
+This visualization analyzes the total number of trips for both casual riders and annual members across each month, providing insights into seasonal trends in bike demand.
+
+```{r}
+
+cyclistic_new_df %>%
+  mutate(month = factor(month, levels = month.name)) %>%
+  group_by(member_casual, month) %>%
+  summarise(total_trips = n()) %>%
+  ggplot(aes(x = month, y = total_trips, color = member_casual, fill = member_casual)) +
+  geom_col(width = 0.9, position = position_dodge(width = 0.9)) +
+  labs(title = "Demand of Bikes by Months", x = "Months", y = "Total Number of Trips") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+
+**Insights:**
+  
+  **Peak Usage:**
+   
+   * Both members and casual riders show increased activity during the warmer months, particularly **June, July, and August.**
+      
+      
+This analysis highlights that the summer months are the busiest for both groups, likely due to favorable weather conditions. This trend can guide marketing and operational planning during peak seasons.
+
+
+
+# Busiest weekday Member vs Casual
+
+This analysis visualizes bike usage by day of the week for both members and casual riders, helping identify which days see the most and least bike activity.
+
+```{r}
+
+cyclistic_new_df %>%
+  mutate(day_of_week = factor(day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"), ordered = TRUE)) %>%
+  group_by(member_casual, day_of_week) %>%
+  summarise(total_trips = n()) %>%
+  ggplot(aes(x = day_of_week, y = total_trips, color = member_casual, fill = member_casual)) +
+  geom_col(width = 0.9, position = position_dodge(width = 0.9)) +
+  labs(title = "Uses of Bike by Day of Week", x = "Day of Week", y = "Total Number of Trips") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 0.7)) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+
+  **Insights:**
+  
+   * **Members:** Typically see the highest usage on weekdays, **Tuesdays, Wednesdays, and Thursday.**
+   
+   * **Casual Riders:** Have the most activity on weekends, especially on **Saturdays.**
+   
+   
+This pattern reflects that members may use bikes more frequently for commuting during the workweek, while casual riders favor the weekend for leisure activities.
+
+
+
+# Average Ride Minutes by Weekdays Member vs Causal
+
+This analysis visualizes the average ride length by weekday for both members and casual riders. It helps understand how the duration of rides varies throughout the week.
+
+```{r}
+
+cyclistic_new_df %>%
+  mutate(day_of_week = factor(day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"), ordered = TRUE)) %>%
+  group_by(member_casual, day_of_week) %>%
+  summarise(avg_ride_length = mean(ride_length)) %>%
+  ggplot(aes(x = day_of_week, y = avg_ride_length, fill = member_casual)) +
+  geom_col(width = 0.9, position = position_dodge(width = 0.9)) +
+  labs(title = "Average Minutes by Weekdays", x = "Day of Week", y = "Average Ride Length (Minutes)") +
+  theme(axis.text.x = element_text(angle = 30, hjust = .7)) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+
+**Insights:**
+  
+  * **Members:** Show a fairly consistent ride length across **weekdays.**
+    
+  * **Casual Riders:** Tend to have significantly longer rides during **weekends.**
+    
+    
+This suggests that casual riders are likely using bikes for recreational purposes on weekends, leading to longer rides, while members may have more regular, shorter trips for commuting.
+
+
+
+# Average Ride Minutes by months member vs casual
+
+This analysis visualizes the average ride length by month for both members and casual riders. It provides insights into how ride duration change throughout the year.
+
+```{r}
+
+cyclistic_new_df %>% 
+  mutate(month = factor(month, levels = month.name)) %>% 
+  group_by(member_casual, month) %>% 
+  summarise(avg_ride_length = mean(ride_length, na.rm = TRUE), .groups = 'drop') %>% 
+  ggplot(aes(x = month, y = avg_ride_length, fill = member_casual)) +
+  geom_col(width = 0.9, position = position_dodge(width = 0.9)) +
+  labs(title = "Average Minutes by Months", x = "Months", y = "Average Ride Length (Minutes)") +
+  theme(axis.text.x = element_text(angle = 30, hjust = .7)) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+
+**Insights:**
+  
+  * **Members:** Display relatively stable average ride lengths throughout the year, with slight increases in **summer months.**
+    
+  * **Casual Riders:** Show more significant fluctuations, with longer average rides during the summer months and shorter rides during **winter.**
+    
+    
+This suggests that casual riders tend to use bikes more extensively during warmer months, while members' usage patterns remain more consistent across seasons.
+
+
+
+
+## What Does The Data Tell Us
+
+The data reveals key differences between **annual members** and **casual riders** in how they use Cyclistic bikes:
+
+1) **Ride Frequency & Duration:**
+
+   * Annual members use Cyclistic bikes more consistently throughout the week and year, typically for shorter, practical rides. They      prefer peak commuting hours (4 PM to 6 PM) and tend to ride less during weekends.
+   
+   * Casual riders, on the other hand, take longer trips, especially during the summer months and on weekends. Their busiest times        are also in the late afternoon (4 PM to 6 PM), but they are much more likely to take rides for leisure, particularly on              weekends.
+   
+   
+2) **Bike Type Preference:**
+
+   * Annual members primarily use classic bikes for commuting, while casual riders prefer electric bikes, likely for convenience and      longer recreational trips.
+   
+   
+3) **Seasonality:**
+
+   * Casual riders are significantly more active in the summer, particularly between June and August, reflecting a tendency for recreational use during warmer months. This seasonal activity highlights the opportunity to target casual riders during these peak periods.
+   
+   
+4) **Peak & Idle Times:**
+
+   * Both members and casual riders have similar peak usage hours (late afternoon) but differ in their idle times. Casual riders are      generally less active during early mornings (3 AM to 5 AM), whereas members show less activity between 2 AM to 4 AM. Weekends        are much busier for casual riders, while weekdays, particularly Monday through Friday, are dominated by annual members.
+  
+  
+These findings suggest that annual members and casual riders have different motivations and usage patterns, which should be addressed with tailored offerings and marketing strategies.
+
+
+
+
+
+
+## Recommendations
+
+
+Based on the data analysis, here are targeted recommendations to address the differences between annual members and casual riders:
+
+   * **Tailored Marketing for Casual Riders:** Casual riders demonstrate a strong preference for riding during the summer months and weekends, often for recreational purposes. Instead of attempting to convert all casual riders into annual members (which may not align with their needs), Cyclistic should introduce **seasonal or summer-specific subscription plans.** This would cater to the casual rider's desire for flexibility during peak riding months, while offering them a cost-effective solution for frequent summer use.
+
+   * **Introduce Flexible Membership Options:** Many casual riders may hesitate to commit to an annual membership due to their occasional or seasonal usage. **Offering short-term memberships** (e.g., 3-month or summer passes) would align better with their riding habits. Cyclistic could further incentive these plans by offering benefits, such as discounts on electric bikes, which are a preferred option for casual riders.
+
+   * **Promote Electric Bikes for Casual Riders:** Since casual riders favor electric bikes for longer, recreational rides, Cyclistic can create **targeted campaigns** that emphasize the convenience, speed, and fun of electric bikes. Additionally, promotional offers (e.g., discounted electric bike rides or packages) during weekends or holidays could encourage more casual riders to engage with Cyclistic regularly.
+
+   * **Utilize Digital Media to Engage Casual Riders:** Cyclistic should leverage **social media, email marketing, and in-app notifications** to communicate the benefits of its new subscription plans. Highlight the flexibility of summer or short-term subscriptions and emphasize how casual riders can save on frequent rides during their preferred seasons. Targeted digital campaigns featuring user testimonials or promotional offers could influence casual riders to choose these new membership options.
+
+   * **Focus on Weekends and Leisure Time:** Since casual riders are more active on weekends and for recreational purposes, Cyclistic could introduce **weekend packages** or special offers for Saturdays and Sundays. Events such as bike tours, group rides, or partnerships with local businesses (like discounts at tourist spots or restaurants) could create a more engaging and rewarding experience for casual riders.
+
+
+
+## Final Thought
+
+
+Casual riders are not likely to be converted into annual members, as their needs and riding habits are different from those of members. Instead of pushing annual memberships, Cyclistic should focus on offering **seasonal, flexible, and recreational-focused solutions** that align with casual riders' behavior, particularly during the summer.
+
+
+
